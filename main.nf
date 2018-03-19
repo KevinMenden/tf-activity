@@ -73,13 +73,10 @@ params.fasta = params.genome ? params.genomes[ params.genome ].fasta ?: false : 
 params.outdir = './results'
 params.gtf = false
 params.saveReference = false
+params.range = 300
 
 
-output_docs = file("$baseDir/docs/output.md")
-
-
-
-
+//output_docs = file("$baseDir/docs/output.md")
 
 // Has the run name been specified by the user?
 //  this has the bonus effect of catching both -name and --name
@@ -88,8 +85,6 @@ if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
     custom_runName = workflow.runName
 }
 
-
-"""
 
 
 // Header log info
@@ -133,6 +128,13 @@ try {
 /**
  * Load and validate inputs
  */
+// Load BED file
+if ( params.peaks ){
+    peak_file = Channel.fromPath(params.peaks).ifEmpty{ exit 1, "Cannot find peak file"}
+} else {
+    exit 1, "Specify the peak file!"
+}
+
 // Load FASTA file
 if ( params.fasta ){
     fasta = file(params.fasta)
@@ -147,30 +149,21 @@ if( params.gtf ){
 }
 
 
-
-
-
-
-
-/*
- * STEP 3 - Output Description HTML
- */
-process output_documentation {
-    tag "$name"
-    publishDir "${params.outdir}/Documentation", mode: 'copy'
+process extract_regions {
+    publishDir "${params.outdir}/regions", mode: 'copy'
 
     input:
-    file output_docs
+    file peaks from peak_file
+    file fasta from fasta
 
     output:
-    file "results_description.html"
+    file "*.fasta"
 
     script:
     """
-    markdown_to_html.r $output_docs results_description.html
+    extract_regions.py $peaks -g $fasta -r $params.range
     """
 }
-
 
 
 /*

@@ -1,66 +1,58 @@
-FROM continuumio/anaconda3
+FROM ubuntu
+
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
+RUN apt-get update --fix-missing && \
+    apt-get install -y wget bzip2 ca-certificates curl git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN echo 'export PATH=/opt/conda/bin:$PATH' > /etc/profile.d/conda.sh && \
+    wget --quiet https://repo.continuum.io/miniconda/Miniconda3-4.4.10-Linux-x86_64.sh -O ~/miniconda.sh && \
+    /bin/bash ~/miniconda.sh -b -p /opt/conda && \
+    rm ~/miniconda.sh && \
+    /opt/conda/bin/conda clean -tipsy
+
+ENV TINI_VERSION v0.16.1
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /usr/bin/tini
+RUN chmod +x /usr/bin/tini
+
+ENV PATH $PATH:/opt/conda/bin
+ENTRYPOINT [ "/usr/bin/tini", "--" ]
+CMD [ "/bin/bash" ]
+
+COPY tfbs-env.yml /
+RUN conda env create -f /tfbs-env.yml
+ENV PATH $PATH:/opt/conda/envs/tfbs-env/bin
 
 # Install container-wide requrements gcc, pip, zlib, libssl, make, libncurses, fortran77, g++, R
 RUN apt-get update && \
-    apt-get install -y \
-    git \
-    gcc \
-    g++ \
-    make \
-    perl \
-    wget \
-    build-essential \
-    libbz2-dev \
-    libcurl4-openssl-dev \
-    #libgsl-dev \
-    #libgsl2 \
-    liblzma-dev \
-    libncurses5-dev \
-    libpcre3-dev \
-    libreadline-dev \
-    libssl-dev \
-    curl \
-    zip \
-    unzip \
-    zlib1g-dev \
-    python-dev
-
-# Install HOMER
-RUN mkdir /opt/homer
-RUN curl -fsSL http://homer.ucsd.edu/homer/configureHomer.pl -o /opt/homer/configureHomer.pl
-RUN perl /opt/homer/configureHomer.pl -install
-
-# Install MEME
-RUN curl -fsSL meme-suite.org/meme-software/4.12.0/meme_4.12.0.tar.gz -o /opt/meme_4.12.0.tar.gz
-RUN cd /opt/ && tar -xzf /opt/meme_4.12.0.tar.gz
-RUN cd /opt/meme_4.12.0; ./configure --prefix=/opt/meme --enable-build-libxml2 --enable-build-libxslt; \
-    make; make install
-
-# Update conda
-RUN conda update -n base conda
-
-# Install biopython
-RUN conda install -c bioconda biopython
+    apt-get install -y --no-install-recommends \
+        g++ \
+        gcc \
+        gfortran \
+        libbz2-dev \
+        libcurl4-openssl-dev \
+        libgsl-dev \
+        libgsl2 \
+        liblzma-dev \
+        libncurses5-dev \
+        libpcre3-dev \
+        libreadline-dev \
+        libssl-dev \
+        make \
+        python-dev \
+        zlib1g-dev \
+        liblzo2-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install R
-#RUN conda install -c r r
+RUN curl -fsSL https://cran.r-project.org/src/base/R-3/R-3.4.2.tar.gz -o /opt/R-3.4.2.tar.gz && \
+    tar xvzf /opt/R-3.4.2.tar.gz -C /opt/ && \
+    cd /opt/R-3.4.2 && \
+    ./configure --with-x=no && \
+    make && \
+    make install && \
+rm /opt/R-3.4.2.tar.gz
 
-RUN apt-get update && apt-get install -y\
-    gfortran
-
-# Install bed tools
-RUN conda install -c bioconda bedtools
-
-RUN apt-get update && apt-get install -y \
-     libcurl4-gnutls-dev
-
-# Install R
-ENV R_VERSION="R-3.4.3"
-RUN curl -fsSL https://cran.r-project.org/src/base/R-3/${R_VERSION}.tar.gz -o /opt/${R_VERSION}.tar.gz && \
-    tar xvzf /opt/${R_VERSION}.tar.gz -C /opt/ && \
-    cd /opt/${R_VERSION};./configure --with-x=no;make;make install && \
-rm /opt/${R_VERSION}.tar.gz
-
-# TODO decide whether to keep this
-# Install biomaRt - only necessary if this is to be included in pipeline ... (probably not though)
-#RUN conda install -c bioconda bioconductor-biomart
+# Install some necessary libraries (move to top at some point)
+RUN apt-get update && apt-get install -y libxml2 libmariadb-client-lgpl-dev
