@@ -53,7 +53,7 @@ def helpMessage() {
 
 
 /*
- * SET UP CONFIGURATION VARIABLES
+ * SETP CONFIGURATION VARIABLES
  */
 
 // Pipeline version
@@ -89,7 +89,7 @@ if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
 
 // Header log info
 log.info "========================================="
-log.info " NF-CAGEseq v${version}"
+log.info " TF-activity v${version}"
 log.info "========================================="
 def summary = [:]
 summary['Run Name']     = custom_runName ?: workflow.runName
@@ -148,8 +148,11 @@ if( params.gtf ){
             .into { gtf_makeSTARindex; gtf_star}
 }
 
-
+/**
+ * STEP 1 Extract the extended regions
+ */
 process extract_regions {
+    tag "$peaks.baseName"
     publishDir "${params.outdir}/regions", mode: 'copy'
 
     input:
@@ -157,14 +160,53 @@ process extract_regions {
     file fasta from fasta
 
     output:
-    file "*.fasta"
+    file "*.fasta" into extended_peaks
 
     script:
     """
     extract_regions.py $peaks -g $fasta -r $params.range
     """
 }
+extended_peaks.into{ ext_peaks_background; ext_peaks_enrichment }
 
+/**
+ * STEP 2 Make shuffled background sequences
+ */
+process make_background {
+    tag "$ext_peaks.baseName"
+    publishDir "${params.outdir}/background", mode: 'copy'
+
+    input:
+    file ext_peaks from ext_peaks_background
+
+    output:
+    file "*.fasta" into background_seq
+
+    script:
+    """
+    /opt/meme/bin/fasta-shuffle-letters -dna $ext_peaks shuffled_background_seq.fasta
+    """
+}
+
+/**
+ * STEP 3 Calculate the enrichment
+ */
+process enrichment {
+    tag "$peaks.baseName"
+    publishDir "${params.outdir}/enrichment", mode: 'copy'
+
+    input:
+    file peaks from ext_peaks_enrichment
+    file background from background_seq
+
+    output:
+    file "*" into enrichment_result
+
+    script:
+    """
+    /opt/homer/bin/homer2 known -i $peaks -b $background -m /JASPAR2018_CORE_vertebrates_nr_pfms.homer -opt -stat hypergeo > homer2_enrichment_result.txt
+    """
+}
 
 /*
  * Completion notification

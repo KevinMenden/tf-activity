@@ -22,37 +22,40 @@ CMD [ "/bin/bash" ]
 
 COPY tfbs-env.yml /
 RUN conda env create -f /tfbs-env.yml
-ENV PATH $PATH:/opt/conda/envs/tfbs-env/bin
+ENV PATH /opt/conda/envs/tfbs-env/bin:$PATH
 
 # Install container-wide requrements gcc, pip, zlib, libssl, make, libncurses, fortran77, g++, R
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        g++ \
-        gcc \
-        gfortran \
-        libbz2-dev \
-        libcurl4-openssl-dev \
-        libgsl-dev \
-        libgsl2 \
-        liblzma-dev \
-        libncurses5-dev \
-        libpcre3-dev \
-        libreadline-dev \
-        libssl-dev \
-        make \
-        python-dev \
-        zlib1g-dev \
-        liblzo2-dev \
-    && rm -rf /var/lib/apt/lists/*
+    apt-get install -y \
+    git \
+    gcc \
+    g++ \
+    make \
+    perl \
+    wget \
+    build-essential \
+    libbz2-dev \
+    libcurl4-openssl-dev \
+    liblzma-dev \
+    libncurses5-dev \
+    libpcre3-dev \
+    libreadline-dev \
+    libssl-dev \
+    curl \
+    zip \
+    unzip \
+    zlib1g-dev
 
-# Install R
-RUN curl -fsSL https://cran.r-project.org/src/base/R-3/R-3.4.2.tar.gz -o /opt/R-3.4.2.tar.gz && \
-    tar xvzf /opt/R-3.4.2.tar.gz -C /opt/ && \
-    cd /opt/R-3.4.2 && \
-    ./configure --with-x=no && \
-    make && \
-    make install && \
-rm /opt/R-3.4.2.tar.gz
+# Install HOMER
+RUN mkdir /opt/homer
+RUN curl -fsSL http://homer.ucsd.edu/homer/configureHomer.pl -o /opt/homer/configureHomer.pl
+RUN perl /opt/homer/configureHomer.pl -install
 
-# Install some necessary libraries (move to top at some point)
-RUN apt-get update && apt-get install -y libxml2 libmariadb-client-lgpl-dev
+# Install MEME
+RUN curl -fsSL meme-suite.org/meme-software/4.12.0/meme_4.12.0.tar.gz -o /opt/meme_4.12.0.tar.gz
+RUN cd /opt/ && tar -xzf /opt/meme_4.12.0.tar.gz
+RUN cd /opt/meme_4.12.0; ./configure --prefix=/opt/meme --enable-build-libxml2 --enable-build-libxslt; \
+make; make install
+
+COPY assets/JASPAR2018_CORE_vertebrates_nr_pfms.homer /
+COPY assets/JASPAR2018_CORE_vertebrates_nr_pfms.jaspar /

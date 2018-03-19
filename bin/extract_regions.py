@@ -4,7 +4,6 @@
 
 # Imports
 import argparse
-import datetime
 import pandas as pd
 from Bio import SeqIO
 
@@ -67,17 +66,14 @@ if __name__ == "__main__":
                         default="/home/kevin/resources/genomes/GRCh38_v27_gencode/GRCh38.primary_assembly.genome.fa")
     parser.add_argument("-r", "--range", help="The range used to extend the peaks up- and downstream (twice the length). Default = 300",
                         default=300)
-    parser.add_argument("-p", "--project", help="Optional name to add to the directory and file names", default="")
 
     args = parser.parse_args()
     peak_file = args.tss_peaks
     genome_file = args.genome
     extension_range = int(args.range)
-    project = str(args.project)
-    if not project == "":
-        project = project + "_"  # add this for better readability of project name given
 
-    fasta_filename = "extended_peaks_seqs_" + project + ".fasta"
+
+    fasta_filename = "extended_peaks_seqs"  + ".fasta"
 
     # Load the genome
     print("\n#==== Loading genome ====# \n" + genome_file)
