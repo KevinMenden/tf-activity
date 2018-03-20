@@ -195,7 +195,7 @@ process enrichment {
     file background from background_seq
 
     output:
-    file "*" into enrichment_result
+    file "*.txt" into enrichment_result
 
     script:
     """
@@ -217,6 +217,7 @@ process region_bed {
     output:
     file "*.bed" into region_bed
     file "*.merged.bed" into merged_region_bed
+    file "*sorted.bed" into sorted_peaks_bed
 
     script:
     """
@@ -260,14 +261,36 @@ process find_motifs {
 
     script:
     """
-    /opt/homer/bin/homer2 find -i $peaks -m $params.pfms -p ${task.cpus} > motif_instances_homer2.txt
+    homer2 find -i $peaks -m $params.pfms -p ${task.cpus} > motif_instances_homer2.txt
     """
 }
 
 /**
- * STEP 6 TF-target filtering
+ * STEP 7 Annotate peaks
+ */
+process annotate {
+    tag "${peaks.baseName}"
+    publishDir "${params.outdir}/annotate", mode: 'copy'
+
+    input:
+    file peaks from sorted_peaks_bed
+
+    output:
+    file "*.txt" into annotated_peaks
+
+    script:
+    """
+    bed_to_peak.py $peaks id_peak_file.txt
+    annotatePeaks.pl id_peak_file.txt $params.fasta -gtf $params.gtf > annotated_peaks.txt
+    """
+}
+
+
+/**
+ * STEP 8 TF-target filtering
  */
 process tf_targets {
+    tag "${enriched.baseName}"
     publishDir "${params.outdir}/tf_targets", mode: 'copy'
 
     input:
@@ -275,11 +298,11 @@ process tf_targets {
     file enriched from enrichment_result
 
     output:
-    file "*.txt" tf_target_results
+    file "*.txt" into tf_target_results
 
     script:
     """
-    tf_targets.py enriched instances
+    tf_targets.py $enriched $instances
     """
 }
 

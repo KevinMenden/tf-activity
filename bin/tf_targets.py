@@ -1,93 +1,75 @@
 #!/usr/bin/env python
 
 """
-Find instances of TF motifs in the provided sequences
+Filter motif instance results to create list of TF targets
 """
 
 # Imports
+
 import argparse
-from Bio import SeqIO
-from Bio import motifs
-
-
-########## FUNCTION SECTION ###############
-def set_alphabet_to_motif_alphabet(seq_dict, mot):
-    """
-    Change alphabet of Seq objects to alphabet of motif object
-    :param seqs: Series of Seq objects
-    :param mot: a motif object
-    :return: updated Series of Seq objects
-    """
-    for elem in seq_dict:
-        seq_rec = seq_dict[elem]
-        seq = seq_rec.seq
-        seq.alphabet = mot.alphabet
-        seq_dict[elem] = seq
-    return seq_dict
-
-
-def count_gen(iter):
-    """
-    Count the items in the iterator object with the second tuple element
-    greate than 0
-    :param iter:
-    :return:
-    """
-    count = 0
-    for elem in iter:
-        if elem[1] > 0:
-            count += 1
-    return count
-
-
-def find_binding_sites(mts, seqs, log_odds_score=8.0):
-    """
-    Find instances of motifs in sequences
-    :param mts:
-    :param seqs:
-    :param log_odds_score:
-    :return:
-    """
-    print("Calculating odds scores ...")
-    background = {'A': 0.3, 'C': 0.2, 'G': 0.2, 'T': 0.3}
-    pseudocounts = {'A': 0.6, 'C': 0.4, 'G': 0.4, 'T': 0.6}
-    no_motifs = len(mts)
-    for i, m in enumerate(mts):
-        pwm = m.counts.normalize(pseudocounts=pseudocounts)
-        pssm = pwm.log_odds(background)
-        print("Processing " + m.name + "\t" + str(i + 1) + " out of " + str(no_motifs))
-        nf = open(m.name + "_hits.txt", 'w')
-        nf.write("TF\tSequence\tHits\n")
-        for elem in seqs:
-            seq = seqs[elem]
-            hits = count_gen(pssm.search(seq, log_odds_score))
-            nf.write(m.name + "\t" + elem + "\t" + str(hits) + "\n")
-        nf.close()
-
+import pandas as pd
+from statsmodels.sandbox.stats.multicomp import multipletests
 
 ############ END FUNCTIONS #################
 
 
 # Argument parsing
 parser = argparse.ArgumentParser()
-parser.add_argument("fasta", help="The fasta sequence file in which to search for motif instances")
-parser.add_argument("motifs", help="The file containing the TF motifs in .jaspar motifs")
+parser.add_argument("enrichment", help="Result from homer2 enrichment analysis")
+parser.add_argument("inst", help="Result from home2 find motifs analysis")
 args = parser.parse_args()
-fasta = args.fasta
-mots = args.motifs
+enr = args.enrichment
+inst = args.inst
 
-############# Find instances ###############
-# Parse motifs
-fh = open(mots)
-tf_motifs = motifs.parse(fh, 'jaspar')
-# TODO delete short-listing
-tf_motifs = tf_motifs[0:5]
-# Parse target sequences
-seq_dict = SeqIO.to_dict(SeqIO.parse(fasta, 'fasta'))
-seq_dict = set_alphabet_to_motif_alphabet(seq_dict, tf_motifs[0])
+inst_df = pd.read_table(inst, header=None)
+inst_df.columns = ['peak', 'location', 'instance', 'motif', 'strand', 'log_odds']
 
-# Find motif instances
-find_binding_sites(tf_motifs, seq_dict)
+enr_df = pd.read_table(enr)
+
+# Cutoffs
+pval_cutoff = 0.001
+log_odds_cutoff = 9.0
+
+# Adjust p-values and get significant enrichment results
+pvals = enr_df['p-value']
+padj = multipletests(pvals)[1]
+enr_df['padj'] = pd.Series(padj)
+enr_df_sig = enr_df.loc[enr_df['padj'] <= pval_cutoff]
+enriched_tfs = enr_df_sig['Motif Name']
+
+# Get above-threshod motif instances
+inst_df_sig = inst_df.loc[inst_df['log_odds'] >= log_odds_cutoff]
+
+######
+## Calculate number of hits per TF and target
+######
+df_dict = {}
+for tf in enriched_tfs:
+    hits = inst_df_sig.loc[inst_df_sig['motif'] == tf]
+    targets = pd.Series(hits['peak'])
+    # Count number of hits for each target
+    utargets = set(targets)
+    tlist = list(targets)
+    ut_dict = {}
+    for ut in utargets:
+        no_hits = tlist.count(ut)
+        ut_dict[ut] = no_hits
+
+    # Create data frame containing target, hits and TF
+    ut_df = pd.DataFrame.from_dict(ut_dict, orient='index')
+    ut_df['TF'] = pd.Series([tf] * len(ut_df), index=ut_df.index)
+    ut_df.index.name = "Target"
+    ut_df.reset_index(inplace=True)
+
+    # Add to dict
+    df_dict[tf] = ut_df
+
+# Concatenate everything
+mdata = pd.DataFrame(pd.concat(df_dict))
+mdata.to_csv("tf_target_mapping.txt")
+
+######
+## Convert DF to BED format for annotation
+######
 
 
-############## EOF ##########################
