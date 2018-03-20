@@ -59,3 +59,4 @@ make; make install
 
 COPY assets/JASPAR2018_CORE_vertebrates_nr_pfms.homer /
 COPY assets/JASPAR2018_CORE_vertebrates_nr_pfms.jaspar /
+COPY assets/merged_concat_tfs/* /merged_concat_tfs_encode/

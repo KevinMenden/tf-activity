@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+
+
 ## Use an "extended_peaks_seq" file to create a bed file defining the regions
 ##
 

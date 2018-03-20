@@ -30,15 +30,6 @@ def helpMessage() {
       --peaks                       Path to input data (must be surrounded with quotes)
       -profile                      Hardware config to use. docker / aws
 
-    Options:
-      --pairedEnd                   Specifies that the input is paired end reads (Currently not supported)
-      --aligner                     [ star ] Specify which aligner should be used. (Currently only 'star' supported)
-
-    Trimming:
-      --cutEcop                     [true|false] Whether the 5' EcoP15I regognition site should be removed. Default is true.
-      --cutLinker                   [true|false] Whether the 3' linker should be removed. Default is true.
-      --trimming                    [true | false] Whether trimming should be performed. Default is true.
-
     References                      If not specified in the configuration file or you wish to overwrite any of the references.
       --fasta                       Path to Fasta reference
       --gtf                         Path to GTF reference
@@ -74,6 +65,8 @@ params.outdir = './results'
 params.gtf = false
 params.saveReference = false
 params.range = 300
+params.pfms = "/JASPAR2018_CORE_vertebrates_nr_pfms.homer"
+params.pfms_jaspar = "/JASPAR2018_CORE_vertebrates_nr_pfms.jaspar"
 
 
 //output_docs = file("$baseDir/docs/output.md")
@@ -94,6 +87,7 @@ log.info "========================================="
 def summary = [:]
 summary['Run Name']     = custom_runName ?: workflow.runName
 summary['Fasta Ref']    = params.fasta
+summary['Motif File']   = params.pfms
 summary['Max Memory']   = params.max_memory
 summary['Max CPUs']     = params.max_cpus
 summary['Max Time']     = params.max_time
@@ -167,7 +161,8 @@ process extract_regions {
     extract_regions.py $peaks -g $fasta -r $params.range
     """
 }
-extended_peaks.into{ ext_peaks_background; ext_peaks_enrichment }
+// Create different output channels
+extended_peaks.into{ ext_peaks_background; ext_peaks_enrichment; ext_peaks_bed; ext_peaks_targets }
 
 /**
  * STEP 2 Make shuffled background sequences
@@ -204,7 +199,87 @@ process enrichment {
 
     script:
     """
-    /opt/homer/bin/homer2 known -i $peaks -b $background -m /JASPAR2018_CORE_vertebrates_nr_pfms.homer -opt -stat hypergeo > homer2_enrichment_result.txt
+    cat $params.pfms > motifs_used.pfm
+    /opt/homer/bin/homer2 known -i $peaks -b $background -m $params.pfms -opt -stat hypergeo > homer2_enrichment_result.txt
+    """
+}
+
+/**
+ * STEP 4 Create BED files from extended region
+ */
+process region_bed {
+    tag "${peaks.baseName}"
+    publishDir "${params.outdir}/regions", mode: 'copy'
+
+    input:
+    file peaks from ext_peaks_bed
+
+    output:
+    file "*.bed" into region_bed
+    file "*.merged.bed" into merged_region_bed
+
+    script:
+    """
+    region_to_bed.py $peaks ${peaks.baseName}.bed -r $params.range
+    bedtools sort -i ${peaks.baseName}.bed > ${peaks.baseName}.sorted.bed
+    bedtools merge -i ${peaks.baseName}.sorted.bed > ${peaks.baseName}.merged.bed
+    """
+}
+
+/**
+ * STEP 5 Calculate intersection with TF ChIP-seq peaks from ENCODE
+ */
+process encode_intersect {
+    tag "${region_bed.baseName}"
+    publishDir "${params.outdir}/encode", mode: 'copy'
+
+    input:
+    file region_bed from merged_region_bed
+
+    output:
+    file "*.txt" into encode_intersection
+
+    script:
+    """
+    intersect_chipseq_data.py $region_bed /merged_concat_tfs/ -out ${region_bed.baseName}.encodeIntersect.txt
+    """
+}
+
+/**
+ * STEP 6 Find TF motif instances in sequences
+ */
+process find_motifs {
+    publishDir "${params.outdir}/tf_targets", mode: 'copy'
+    cpus 4
+
+    input:
+    file peaks from ext_peaks_targets
+
+    output:
+    file "*.txt" into motif_instances
+
+    script:
+    """
+    /opt/homer/bin/homer2 find -i $peaks -m $params.pfms -p ${task.cpus} > motif_instances_homer2.txt
+    """
+}
+
+/**
+ * STEP 6 TF-target filtering
+ */
+process tf_targets {
+    publishDir "${params.outdir}/tf_targets", mode: 'copy'
+
+    input:
+    file instances from motif_instances
+    file enriched from enrichment_result
+
+    output:
+    file "*.txt" tf_target_results
+
+    script:
+    """
+    tf_targets.py enriched instances
     """
 }
 

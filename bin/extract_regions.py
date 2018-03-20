@@ -78,6 +78,7 @@ if __name__ == "__main__":
     # Load the genome
     print("\n#==== Loading genome ====# \n" + genome_file)
     genome_dict = SeqIO.to_dict(SeqIO.parse(genome_file, "fasta"))
+    #genome_dict = SeqIO.index(genome_file, "fasta")
     print("#==== Genome loaded ====# \n")
 
 
