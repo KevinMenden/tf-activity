@@ -124,7 +124,7 @@ try {
  */
 // Load BED file
 if ( params.peaks ){
-    peak_file = Channel.fromPath(params.peaks).ifEmpty{ exit 1, "Cannot find peak file"}
+    Channel.fromPath(params.peaks).ifEmpty{ exit 1, "Cannot find peak file"}.into{ peak_file_extraction; peak_file_annotation}
 } else {
     exit 1, "Specify the peak file!"
 }
@@ -150,7 +150,7 @@ process extract_regions {
     publishDir "${params.outdir}/regions", mode: 'copy'
 
     input:
-    file peaks from peak_file
+    file peaks from peak_file_extraction
     file fasta from fasta
 
     output:
@@ -273,10 +273,10 @@ process annotate {
     publishDir "${params.outdir}/annotate", mode: 'copy'
 
     input:
-    file peaks from sorted_peaks_bed
+    file peaks from peak_file_annotation
 
     output:
-    file "*.txt" into annotated_peaks
+    file "*annotated_peaks.txt" into annotated_peaks
 
     script:
     """
@@ -296,13 +296,14 @@ process tf_targets {
     input:
     file instances from motif_instances
     file enriched from enrichment_result
+    file anno_peaks from annotated_peaks
 
     output:
     file "*.txt" into tf_target_results
 
     script:
     """
-    tf_targets.py $enriched $instances
+    tf_targets.py $enriched $instances $anno_peaks
     """
 }
 
