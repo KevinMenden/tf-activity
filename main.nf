@@ -28,6 +28,7 @@ def helpMessage() {
 
     Mandatory arguments:
       --peaks                       Path to input data (must be surrounded with quotes)
+      --background                  Path to non-significant CAGE peaks
       -profile                      Hardware config to use. docker / aws
 
     References                      If not specified in the configuration file or you wish to overwrite any of the references.
@@ -141,10 +142,8 @@ if ( params.fasta ){
 }
 // Load GTF file
 if( params.gtf ){
-    Channel
-            .fromPath(params.gtf)
-            .ifEmpty { exit 1, "GTF annotation file not found: ${params.gtf}" }
-            .into { gtf_makeSTARindex; gtf_star}
+    gtf = file(params.gtf)
+    if ( !gtf.exists() ) exit 1, "GTF file not found:" ${params.gtf}
 }
 
 /**
@@ -301,6 +300,7 @@ process annotate {
 
     input:
     file peaks from peak_file_annotation
+    file gtf from gtf
 
     output:
     file "*annotated_peaks.txt" into annotated_peaks
@@ -308,7 +308,7 @@ process annotate {
     script:
     """
     bed_to_peak.py $peaks id_peak_file.txt
-    annotatePeaks.pl id_peak_file.txt $params.fasta -gtf $params.gtf > annotated_peaks.txt
+    annotatePeaks.pl id_peak_file.txt $params.fasta -gtf $gtf > annotated_peaks.txt
     """
 }
 
