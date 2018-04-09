@@ -67,6 +67,7 @@ params.saveReference = false
 params.range = 300
 params.pfms = "/JASPAR2018_CORE_vertebrates_nr_pfms.homer"
 params.pfms_jaspar = "/JASPAR2018_CORE_vertebrates_nr_pfms.jaspar"
+params.background = false
 
 
 //output_docs = file("$baseDir/docs/output.md")
@@ -128,6 +129,10 @@ if ( params.peaks ){
 } else {
     exit 1, "Specify the peak file!"
 }
+// Load background
+if ( params.background ){
+    Channel.fromPath(params.background).ifEmpty{exit 1, "Cannot find background file"}.set{background}
+}
 
 // Load FASTA file
 if ( params.fasta ){
@@ -165,23 +170,45 @@ process extract_regions {
 extended_peaks.into{ ext_peaks_background; ext_peaks_enrichment; ext_peaks_bed; ext_peaks_targets }
 
 /**
- * STEP 2 Make shuffled background sequences
+ * STEP 2 Make background sequences
+ * If non-DE peaks are availble, extend their regions
+ * Else shuffle the input peaks
  */
-process make_background {
-    tag "$ext_peaks.baseName"
-    publishDir "${params.outdir}/background", mode: 'copy'
+if (params.background){
+    process make_background {
+        publishDir "${params.outdir}/background", mode: 'copy'
 
-    input:
-    file ext_peaks from ext_peaks_background
+        input:
+        file peaks from background
+        file fasta from fasta
 
-    output:
-    file "*.fasta" into background_seq
+        output:
+        file "*.fasta" into background_seq
 
-    script:
-    """
-    /opt/meme/bin/fasta-shuffle-letters -dna $ext_peaks shuffled_background_seq.fasta
-    """
+        script:
+        """
+        extract_regions.py $peaks -g $fasta -r $params.range -f background_seq.fasta
+        """
+    }
 }
+else {
+    process make_shuffled_background {
+        tag "$ext_peaks.baseName"
+        publishDir "${params.outdir}/background", mode: 'copy'
+
+        input:
+        file ext_peaks from ext_peaks_background
+
+        output:
+        file "*.fasta" into background_seq
+
+        script:
+        """
+        fasta-shuffle-letters -dna $ext_peaks shuffled_background_seq.fasta
+        """
+    }
+}
+
 
 /**
  * STEP 3 Calculate the enrichment
@@ -200,7 +227,7 @@ process enrichment {
     script:
     """
     cat $params.pfms > motifs_used.pfm
-    /opt/homer/bin/homer2 known -i $peaks -b $background -m $params.pfms -opt -stat hypergeo > homer2_enrichment_result.txt
+    homer2 known -i $peaks -b $background -m $params.pfms -opt -stat hypergeo > homer2_enrichment_result.txt
     """
 }
 

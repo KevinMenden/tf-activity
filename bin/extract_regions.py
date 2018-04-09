@@ -66,14 +66,13 @@ if __name__ == "__main__":
                         default="/home/kevin/resources/genomes/GRCh38_v27_gencode/GRCh38.primary_assembly.genome.fa")
     parser.add_argument("-r", "--range", help="The range used to extend the peaks up- and downstream (twice the length). Default = 300",
                         default=300)
+    parser.add_argument("-f", "--filename", help="Name of the output file", default="extended_peaks_seqs.fasta")
 
     args = parser.parse_args()
     peak_file = args.tss_peaks
     genome_file = args.genome
     extension_range = int(args.range)
-
-
-    fasta_filename = "extended_peaks_seqs"  + ".fasta"
+    fasta_filename = args.filename
 
     # Load the genome
     print("\n#==== Loading genome ====# \n" + genome_file)
