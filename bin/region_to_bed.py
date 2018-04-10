@@ -28,8 +28,8 @@ peaks = [x for x in fasta_lines if x.startswith(">")]
 for peak in peaks:
     peak_range = peak.split("_")
     chr = peak_range[0].replace(">", "")
-    start = str(int(peak_range[1]) - (2*rng))
-    end = str(int(peak_range[2]) + rng)
+    start = str(int(peak_range[1]))
+    end = str(int(peak_range[2]))
     strand = peak_range[3]
     outfile.write(chr + "\t" + start + "\t" + end + "\t" + strand)
 

@@ -43,10 +43,15 @@ def extract_extended_regions(peak_file, extension_range, genome_dict):
         tss_list = peak.split("\t")
         chr = tss_list[0]
         start = int(tss_list[1]) - (2*extension_range) - 1
+        if start < 0:
+            start = 0
         end = int(tss_list[2]) + extension_range - 1
         strand = tss_list[3].rstrip()
         tss_coords.append("_".join(tss_list).rstrip())
         rec = genome_dict[chr]
+        seq_len = len(rec.seq)
+        if end > seq_len:
+            end = seq_len
         if strand == '+':
             tss_reg = rec.seq[start:end]
         else:
