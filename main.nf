@@ -66,8 +66,9 @@ params.outdir = './results'
 params.gtf = false
 params.saveReference = false
 params.range = 300
-params.pfms = "/JASPAR2018_CORE_vertebrates_nr_pfms.homer"
-params.pfms_jaspar = "/JASPAR2018_CORE_vertebrates_nr_pfms.jaspar"
+//params.pfms = "/JASPAR2018_CORE_vertebrates_nr_pfms.homer"
+params.pfms = false
+params.pfms_jaspar = false
 params.background = false
 
 
@@ -145,6 +146,45 @@ if( params.gtf ){
     gtf = file(params.gtf)
     if ( !gtf.exists() ) exit 1, "GTF file not found:" ${params.gtf}
 }
+// Load pfms
+if (!params.pfms_jaspar && !params.pfms){
+    // Use default PFMs
+    process copy_pfms {
+        publishDir "${params.outdir}/motifs", mode: 'copy'
+
+        output:
+        file "*homer" into pfms
+
+        script:
+        """
+        cp "/JASPAR2018_CORE_vertebrates_nr_pfms.homer" .
+        """
+    }
+}
+if( params.pfms ){
+    pfms = file(params.pfms)
+    if ( !pfms.exists() ) exit 1, "PFMs not found:" ${params.pfms}
+}
+// If Jaspar motifs given, transform them to Homer format
+else if (params.pfms_jaspar ) {
+    pfms_jaspar = file(params.pfms_jaspar)
+    if ( !pfms_jaspar.exists()) exit 1, "Jaspar PFMs not found:" ${params.pfms_jaspar}
+
+    process jaspar_to_homer {
+        publishDir "${params.outdir}/motifs", mode: 'copy'
+
+        input:
+        file pfms_jaspar from pfms_jaspar
+
+        output:
+        file "*.homer" into pfms
+
+        script:
+        """
+        jaspar_to_homer_motif.py $pfms_jaspar
+        """
+    }
+}
 
 /**
  * STEP 1 Extract the extended regions
@@ -219,14 +259,15 @@ process enrichment {
     input:
     file peaks from ext_peaks_enrichment
     file background from background_seq
+    file pfms from pfms
 
     output:
     file "*.txt" into enrichment_result
 
     script:
     """
-    cat $params.pfms > motifs_used.pfm
-    homer2 known -i $peaks -b $background -m $params.pfms -opt -stat hypergeo > homer2_enrichment_result.txt
+    cat $pfms > motifs_used.pfm
+    homer2 known -i $peaks -b $background -m $pfms -opt -stat hypergeo > homer2_enrichment_result.txt
     """
 }
 
@@ -281,13 +322,14 @@ process find_motifs {
 
     input:
     file peaks from ext_peaks_targets
+    file pfms from pfms
 
     output:
     file "*.txt" into motif_instances
 
     script:
     """
-    homer2 find -i $peaks -m $params.pfms -p ${task.cpus} > motif_instances_homer2.txt
+    homer2 find -i $peaks -m $pfms -p ${task.cpus} > motif_instances_homer2.txt
     """
 }
 
