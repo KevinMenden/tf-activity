@@ -70,6 +70,7 @@ params.range = 300
 params.pfms = false
 params.pfms_jaspar = false
 params.background = false
+params.encode = "/merged_concat_tfs/"
 
 
 //output_docs = file("$baseDir/docs/output.md")
@@ -309,7 +310,7 @@ process encode_intersect {
 
     script:
     """
-    intersect_chipseq_data.py $region_bed /merged_concat_tfs/ -out ${region_bed.baseName}.encodeIntersect.txt
+    intersect_chipseq_data.py $region_bed $params.encode -out ${region_bed.baseName}.encodeIntersect.txt
     """
 }
 
