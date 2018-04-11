@@ -38,8 +38,35 @@ A file containing all the TF motifs to use. This file must be in homer format. I
 you can instead specifiy a TF motif file in Jaspar format using the `--pfms_jaspar` flag. If none of these two flags
 is set, the pipeline will use all motifs from the Jaspar core collection.
 
+#### `--encode`
+A directory containing BED peak files from ChIP-seq experiments with transcription factors. They will be used for
+intersection.
+
 #### `-profile`
 Which profile to use. Use `docker` to use the docker container provided.
+It is best to create your own profile config file. You can look at the files in /conf for examples, and create one yourself.
+Then you have to reference it in the nextflow.config file like so:
+
+```
+profiles {
+
+    standard
+    {
+        includeConfig 'conf/base.config'
+    }
+    docker
+    {
+        includeConfig 'conf/base.config'
+        includeConfig 'conf/docker.config'
+    }
+    my_profile
+    {
+        includeConfig 'conf/base.config'
+        includeConfig 'conf/my_profile.config'
+    }
+
+}
+```
 
 
 

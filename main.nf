@@ -268,7 +268,7 @@ process enrichment {
     script:
     """
     cat $pfms > motifs_used.pfm
-    homer2 known -i $peaks -b $background -m $pfms -opt -stat hypergeo > homer2_enrichment_result.txt
+    homer2 known -i $peaks -b $background -m $pfms -opt -stat hypergeo -p ${task.cpus} > homer2_enrichment_result.txt
     """
 }
 
