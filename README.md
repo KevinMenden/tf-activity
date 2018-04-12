@@ -40,7 +40,7 @@ is set, the pipeline will use all motifs from the Jaspar core collection.
 
 #### `--encode`
 A directory containing BED peak files from ChIP-seq experiments with transcription factors. They will be used for
-intersection.
+intersection. If this flag is not set, this step will be let out.
 
 #### `-profile`
 Which profile to use. Use `docker` to use the docker container provided.

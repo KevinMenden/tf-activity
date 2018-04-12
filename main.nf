@@ -298,21 +298,24 @@ process region_bed {
 /**
  * STEP 5 Calculate intersection with TF ChIP-seq peaks from ENCODE
  */
-process encode_intersect {
-    tag "${region_bed.baseName}"
-    publishDir "${params.outdir}/encode", mode: 'copy'
+if (params.encode){
+    process encode_intersect {
+        tag "${region_bed.baseName}"
+        publishDir "${params.outdir}/encode", mode: 'copy'
 
-    input:
-    file region_bed from merged_region_bed
+        input:
+        file region_bed from merged_region_bed
 
-    output:
-    file "*.txt" into encode_intersection
+        output:
+        file "*.txt" into encode_intersection
 
-    script:
-    """
-    intersect_chipseq_data.py $region_bed $params.encode -out ${region_bed.baseName}.encodeIntersect.txt
-    """
+        script:
+        """
+        intersect_chipseq_data.py $region_bed $params.encode -out ${region_bed.baseName}.encodeIntersect.txt
+        """
+    }
 }
+
 
 /**
  * STEP 6 Find TF motif instances in sequences
