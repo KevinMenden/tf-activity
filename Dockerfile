@@ -20,9 +20,9 @@ ENV PATH $PATH:/opt/conda/bin
 ENTRYPOINT [ "/usr/bin/tini", "--" ]
 CMD [ "/bin/bash" ]
 
-COPY tfbs-env.yml /
-RUN conda env create -f /tfbs-env.yml
-ENV PATH /opt/conda/envs/tfbs-env/bin:$PATH
+COPY environment.yml /
+RUN conda env create -f /environment.yml
+ENV PATH /opt/conda/envs/tf-activity/bin:$PATH
 
 # Install container-wide requrements gcc, pip, zlib, libssl, make, libncurses, fortran77, g++, R
 RUN apt-get update && \
