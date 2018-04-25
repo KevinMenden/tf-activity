@@ -63,7 +63,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("enrichment", help="Result from homer2 enrichment analysis")
 parser.add_argument("inst", help="Result from home2 find motifs analysis")
 parser.add_argument("anno_peaks", help="The annotate CAGE peaks")
-parser.add_argument("--pval_cutoff", help="The adj. P-value cutoff. Default 0.001", default=0.001)
+parser.add_argument("--pval_cutoff", help="The adj. P-value cutoff. Default 0.05", default=0.05)
 parser.add_argument("--log_odds", help="The log-odds cutoff for hit decision. Defaul 9.0", default=9.0)
 args = parser.parse_args()
 enr = args.enrichment
@@ -86,7 +86,7 @@ log_odds_cutoff = args.log_odds
 
 # Adjust p-values and get significant enrichment results
 pvals = enr_df['p-value']
-padj = multipletests(pvals)[1]
+padj = multipletests(pvals, method="fdr_bh")[1]
 enr_df['padj'] = pd.Series(padj)
 enr_df_sig = enr_df.loc[enr_df['padj'] <= pval_cutoff]
 enriched_tfs = enr_df_sig['Motif Name']
