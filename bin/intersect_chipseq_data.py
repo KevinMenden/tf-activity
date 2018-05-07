@@ -81,6 +81,4 @@ outfile.close()
 
 # Save TF-intersections
 tfdf = pd.concat(tf_frames, ignore_index=True, axis=0)
-csv_out_name = args.out
-csv_out_name.replace(".txt", ".csv")
-tfdf.to_csv(csv_out_name)
+tfdf.to_csv(args.out.replace(".txt", ".csv"))

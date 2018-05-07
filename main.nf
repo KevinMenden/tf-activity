@@ -307,7 +307,7 @@ if (params.encode){
         file region_bed from merged_region_bed
 
         output:
-        file "*.txt" into encode_intersection
+        file "*" into encode_intersection
 
         script:
         """
