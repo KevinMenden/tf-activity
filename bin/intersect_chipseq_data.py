@@ -64,13 +64,23 @@ tf_files = glob.glob(tf_dir + "/*.bed")
 outfile = open(outfile, "w")
 outfile.write("TF\tOverlaps\n")
 
+tf_frames = []
+
 # Loop over all TFs to find matches
 for i,tff in enumerate(tf_files):
-    print(i)
     tf_name = get_tf_name(tff)
     tf_bed = pybedtools.BedTool(tff)
     ovlp = reg_bed.intersect(tf_bed, u=True)
     ovlp_len = len(ovlp)
+    df = pd.read_table(ovlp.fn, header=None, names=["chr", "start", "end", "strand"])
+    df['TF'] = tf_name
+    tf_frames.append(df)
     outfile.write(tf_name + "\t" + str(ovlp_len) + "\n")
 
 outfile.close()
+
+# Save TF-intersections
+tfdf = pd.concat(tf_frames, ignore_index=True, axis=0)
+csv_out_name = args.out
+csv_out_name.replace(".txt", ".csv")
+tfdf.to_csv(csv_out_name)
