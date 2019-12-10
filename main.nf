@@ -70,7 +70,6 @@ params.range = 300
 params.pfms = false
 params.pfms_jaspar = false
 params.background = false
-params.encode = "/merged_concat_tfs/"
 
 
 //output_docs = file("$baseDir/docs/output.md")
